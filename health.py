@@ -3,41 +3,43 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 health_router = Router()
 
-# Клавиатура для вопросов
+# Главная клавиатура
+main_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="Кредитная карта")],
+        [KeyboardButton(text="Защита на любой случай")],
+        [KeyboardButton(text="Сберздоровье")]
+    ],
+    resize_keyboard=True
+)
+
+# Клавиатура с вариантами
 health_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="Вариант 1")],
-        [KeyboardButton(text="Вариант 2")]
+        [KeyboardButton(text="Вариант 1 (Здоровье)")],
+        [KeyboardButton(text="Вариант 2 (Здоровье)")]
     ],
     resize_keyboard=True
 )
 
-# Клавиатура для выбора ответа
-yes_no_keyboard_1 = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="Да, очень часто")],
-        [KeyboardButton(text="Нет, не хожу")]
-    ],
-    resize_keyboard=True
-)
+# Клавиатуры для ответов
+yes_no_keyboards = {
+    "Вариант 1 (Здоровье)": ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Да, очень часто (Здоровье)")], [KeyboardButton(text="Нет, не хожу (Здоровье)")]],
+        resize_keyboard=True
+    ),
+    "Вариант 2 (Здоровье)": ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Да, сталкивался (Здоровье)")], [KeyboardButton(text="Нет, не сталкивался (Здоровье)")]],
+        resize_keyboard=True
+    ),
+}
 
-yes_no_keyboard_2 = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="Да, сталкивался")],
-        [KeyboardButton(text="Нет, не сталкивался")]
-    ],
-    resize_keyboard=True
-)
-
-# Клавиатура "Мне это интересно!"
+# Кнопка "Мне это интересно!"
 interest_keyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="Мне это интересно!")]
-    ],
+    keyboard=[[KeyboardButton(text="Мне это интересно!")]],
     resize_keyboard=True
 )
 
-# Обработчик выбора "Сберздоровье"
 @health_router.message(lambda message: message.text == "Сберздоровье")
 async def health_info(message: types.Message):
     await message.answer(
@@ -48,47 +50,25 @@ async def health_info(message: types.Message):
         reply_markup=health_keyboard
     )
 
-@health_router.message(lambda message: message.text == "Вариант 1")
-async def option_1(message: types.Message):
-    await message.answer("У вас есть дети? Как часто обращаетесь к педиатру по вопросам их здоровья?", reply_markup=yes_no_keyboard_1)
+@health_router.message(lambda message: message.text in yes_no_keyboards.keys())
+async def handle_variant(message: types.Message):
+    await message.answer("Выберите ответ:", reply_markup=yes_no_keyboards[message.text])
 
-@health_router.message(lambda message: message.text == "Вариант 2")
-async def option_2(message: types.Message):
-    await message.answer("Были ли у вас ситуации, когда не было возможности очно прийти на прием, "
-                         "потому что срочные вопросы со здоровьем возникали ночью, на даче или за границей?",
-                         reply_markup=yes_no_keyboard_2)
+@health_router.message(lambda message: message.text.endswith("(Здоровье)") and "Да" in message.text)
+async def handle_variant_yes(message: types.Message):
+    answers = {
+        "Да, очень часто (Здоровье)": "Семья возвращалась на машине из отпуска, у ребенка проявился ротавирус. "
+                                       "Они обратились за онлайн-консультацией, купили лекарства и начали лечение.",
+        "Да, сталкивался (Здоровье)": "Мужчина с высокой температурой вызвал врача. "
+                                       "ОРВИ не подтвердилось, но онлайн-врач заметил сыпь – оказалась ветрянка. "
+                                       "Он получил точный диагноз и рекомендации.",
+    }
+    await message.answer(answers[message.text], reply_markup=interest_keyboard)
 
-# Обработчики ответов на вопросы
-@health_router.message(lambda message: message.text == "Да, очень часто")
-async def answer_1_yes(message: types.Message):
-    await message.answer(
-        "Мои знакомые (семья с ребенком) возвращались на автомобиле из отпуска. В дороге у ребенка проявился ротавирус. "
-        "Потребовалась срочная консультация врача. Обратились за онлайн-консультацией к педиатру и получили детальную консультацию. "
-        "По дороге заехали в аптеку и купили препараты, назначенные врачом. И сразу приступили к лечению.",
-        reply_markup=interest_keyboard
-    )
+@health_router.message(lambda message: message.text.endswith("(Здоровье)") and "Нет" in message.text)
+async def handle_variant_no(message: types.Message):
+    await health_info(message)
 
-@health_router.message(lambda message: message.text == "Да, сталкивался")
-async def answer_2_yes(message: types.Message):
-    await message.answer(
-        "Мужчина с высокой температурой вызвал врача на дом. Врач поставил ОРВИ и прописал лечение. "
-        "Тест на коронавирус был отрицательным. Лечение не помогало, температура держалась. "
-        "После чего мужчина решил обратиться за онлайн-консультацией, и по видеосвязи врач обратил внимание на высыпание на лице. "
-        "После нескольких вопросов и сбора анамнеза была определена ветрянка и даны рекомендации к лечению.",
-        reply_markup=interest_keyboard
-    )
-
-# Обработчик кнопки "Мне это интересно!"
 @health_router.message(lambda message: message.text == "Мне это интересно!")
 async def restart(message: types.Message):
-    await message.answer(
-        f"Привет, {message.from_user.full_name}!\nКакой продукт вас интересует?",
-        reply_markup=ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="Кредитная карта")],
-                [KeyboardButton(text="Защита на любой случай")],
-                [KeyboardButton(text="Сберздоровье")]
-            ],
-            resize_keyboard=True
-        )
-    )
+    await message.answer("Какой продукт вас интересует?", reply_markup=main_keyboard)
